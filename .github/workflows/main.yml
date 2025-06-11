@@ -49,4 +49,3 @@ jobs:
         run: |
           docker tag localhost:5000/n8n-node-app:latest saivenkatvaraprasady/n8n-node-app:latest
           docker push saivenkatvaraprasady/n8n-node-app:latest
-
