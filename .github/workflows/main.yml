@@ -1,0 +1,50 @@
+name: Build → Push to Local → Sign → Push to DockerHub
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-sign-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.2.0
+
+      - name: Build and Push to Local Registry
+        run: |
+          docker run -d -p 5000:5000 --name local-registry registry:2 || true
+          docker build -t localhost:5000/n8n-node-app:latest .
+          docker push localhost:5000/n8n-node-app:latest
+
+      - name: Get Digest from Local Registry
+        id: get_digest
+        run: |
+          DIGEST=$(docker image inspect localhost:5000/n8n-node-app:latest --format='{{index .RepoDigests 0}}' | cut -d "@" -f 2)
+          echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+      - name: Sign Docker Image
+        run: |
+          echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
+          cosign sign --key cosign.key --yes localhost:5000/n8n-node-app@${{ steps.get_digest.outputs.digest }}
+        env:
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+
+      - name: Retag and Push to DockerHub
+        run: |
+          docker tag localhost:5000/n8n-node-app:latest saivenkatvaraprasady/n8n-node-app:latest
+          docker push saivenkatvaraprasady/n8n-node-app:latest
