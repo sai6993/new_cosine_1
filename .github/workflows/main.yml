@@ -1,4 +1,4 @@
-name: Build → Push to Local → Sign → Push to DockerHub
+name: Build → Pushh to Local → Sign → Push to DockerHub
 
 on:
   push:
