@@ -1,13 +1,10 @@
- HEAD
-name: Build → Sign → Push to DockerHub
-
-name: Build → Pushh to Local → Sign → Push to DockerHub
- 2665d4c8c3f1e0ebf07cf9288e8f94d1b175aa0c
+name: Build Sign Push to DockerHub
 
 on:
   push:
     branches:
-      - main
+      - master
+  workflow_dispatch:
 
 jobs:
   build-sign-push:
@@ -29,23 +26,27 @@ jobs:
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.2.0
 
-      - name: Build and Push Image to DockerHub
+      - name: Build and Push to Local Registry
         run: |
-          docker build -t saivenkatvaraprasady/n8n-node-app:latest .
-          docker push saivenkatvaraprasady/n8n-node-app:latest
+          docker run -d -p 5000:5000 --name local-registry registry:2 || true
+          docker build -t localhost:5000/n8n-node-app:latest .
+          docker push localhost:5000/n8n-node-app:latest
 
-      - name: Get Digest from DockerHub
+      - name: Get Digest from Local Registry
         id: get_digest
         run: |
-          DIGEST=$(docker image inspect saivenkatvaraprasady/n8n-node-app:latest --format='{{index .RepoDigests 0}}' | cut -d "@" -f 2)
+          DIGEST=$(docker image inspect localhost:5000/n8n-node-app:latest --format='{{index .RepoDigests 0}}' | cut -d "@" -f 2)
           echo "digest=$DIGEST" >> $GITHUB_OUTPUT
 
-      - name: Write Cosign Key
-        run: echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
-
-      - name: Sign Image from DockerHub
+      - name: Sign Docker Image
         run: |
-          cosign sign --key cosign.key --yes saivenkatvaraprasady/n8n-node-app@${{ steps.get_digest.outputs.digest }}
+          echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
+          cosign sign --key cosign.key --yes localhost:5000/n8n-node-app@${{ steps.get_digest.outputs.digest }}
         env:
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+
+      - name: Retag and Push to DockerHub
+        run: |
+          docker tag localhost:5000/n8n-node-app:latest saivenkatvaraprasady/n8n-node-app:latest
+          docker push saivenkatvaraprasady/n8n-node-app:latest
 
