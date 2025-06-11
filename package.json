@@ -1,0 +1,7 @@
+{
+  "name": "n8n-node-app",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {}
+}
+
