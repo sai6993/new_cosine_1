@@ -1,4 +1,8 @@
+ HEAD
 name: Build → Sign → Push to DockerHub
+
+name: Build → Pushh to Local → Sign → Push to DockerHub
+ 2665d4c8c3f1e0ebf07cf9288e8f94d1b175aa0c
 
 on:
   push:
